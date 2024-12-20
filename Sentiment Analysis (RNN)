@@ -1,0 +1,679 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "67d2b807",
+   "metadata": {
+    "_cell_guid": "b1076dfc-b9ad-4769-8c92-a6c4dae69d19",
+    "_uuid": "8f2839f25d086af736a60e9eeb907d3b93b6e0e5",
+    "execution": {
+     "iopub.execute_input": "2024-12-20T08:13:48.221347Z",
+     "iopub.status.busy": "2024-12-20T08:13:48.220906Z",
+     "iopub.status.idle": "2024-12-20T08:13:54.500537Z",
+     "shell.execute_reply": "2024-12-20T08:13:54.498700Z"
+    },
+    "papermill": {
+     "duration": 6.287123,
+     "end_time": "2024-12-20T08:13:54.502722",
+     "exception": false,
+     "start_time": "2024-12-20T08:13:48.215599",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Collecting unidecode\r\n",
+      "  Downloading Unidecode-1.3.8-py3-none-any.whl.metadata (13 kB)\r\n",
+      "Downloading Unidecode-1.3.8-py3-none-any.whl (235 kB)\r\n",
+      "\u001b[2K   \u001b[90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m \u001b[32m235.5/235.5 kB\u001b[0m \u001b[31m4.9 MB/s\u001b[0m eta \u001b[36m0:00:00\u001b[0m\r\n",
+      "\u001b[?25hInstalling collected packages: unidecode\r\n",
+      "Successfully installed unidecode-1.3.8\r\n"
+     ]
+    }
+   ],
+   "source": [
+    "!pip install unidecode"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "f705ec74",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-12-20T08:13:54.512594Z",
+     "iopub.status.busy": "2024-12-20T08:13:54.512197Z",
+     "iopub.status.idle": "2024-12-20T08:14:01.349109Z",
+     "shell.execute_reply": "2024-12-20T08:14:01.347760Z"
+    },
+    "papermill": {
+     "duration": 6.843881,
+     "end_time": "2024-12-20T08:14:01.351095",
+     "exception": false,
+     "start_time": "2024-12-20T08:13:54.507214",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "[nltk_data] Downloading package stopwords to /usr/share/nltk_data...\n",
+      "[nltk_data]   Package stopwords is already up-to-date!\n"
+     ]
+    }
+   ],
+   "source": [
+    "import torch\n",
+    "import torch .nn as nn\n",
+    "\n",
+    "seed = 1\n",
+    "torch.manual_seed ( seed )\n",
+    "\n",
+    "import os\n",
+    "import numpy as np\n",
+    "import pandas as pd\n",
+    "import matplotlib.pyplot as plt\n",
+    "import re\n",
+    "import nltk\n",
+    "import unidecode\n",
+    "\n",
+    "nltk.download ('stopwords')\n",
+    "from nltk.corpus import stopwords\n",
+    "from nltk.stem.porter import PorterStemmer\n",
+    "\n",
+    "from torch.utils.data import Dataset , DataLoader\n",
+    "from sklearn.model_selection import train_test_split"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "id": "447fa0ed",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-12-20T08:14:01.360513Z",
+     "iopub.status.busy": "2024-12-20T08:14:01.359938Z",
+     "iopub.status.idle": "2024-12-20T08:14:01.417898Z",
+     "shell.execute_reply": "2024-12-20T08:14:01.416515Z"
+    },
+    "papermill": {
+     "duration": 0.064937,
+     "end_time": "2024-12-20T08:14:01.420084",
+     "exception": false,
+     "start_time": "2024-12-20T08:14:01.355147",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "dataset_path = '/kaggle/input/datasent/dataset/all-data.csv'\n",
+    "headers = ['sentiment', 'content']\n",
+    "df = pd.read_csv(dataset_path, names=headers, encoding='ISO-8859-1')\n",
+    "\n",
+    "\n",
+    "classes = {class_name: idx for idx, class_name in enumerate(df['sentiment'].unique().tolist())}\n",
+    "df['sentiment'] = df['sentiment'].apply(lambda x: classes[x])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "id": "efe943b5",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-12-20T08:14:01.429131Z",
+     "iopub.status.busy": "2024-12-20T08:14:01.428740Z",
+     "iopub.status.idle": "2024-12-20T08:14:02.967292Z",
+     "shell.execute_reply": "2024-12-20T08:14:02.966226Z"
+    },
+    "papermill": {
+     "duration": 1.545511,
+     "end_time": "2024-12-20T08:14:02.969554",
+     "exception": false,
+     "start_time": "2024-12-20T08:14:01.424043",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "english_stop_words = stopwords.words('english')\n",
+    "stemmer = PorterStemmer()\n",
+    "\n",
+    "def text_normalize(text):\n",
+    "    text = text.lower()\n",
+    "    text = unidecode.unidecode(text)\n",
+    "    text = text.strip()\n",
+    "    text = re.sub(r'[^\\w\\s]', '', text)\n",
+    "    text = ' '.join([word for word in text.split(' ') if word not in english_stop_words])\n",
+    "    text = ' '.join([stemmer.stem(word) for word in text.split(' ')])\n",
+    "    return text\n",
+    "\n",
+    "df['content'] = df['content'].apply(lambda x: text_normalize(x))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "id": "6cd5183b",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-12-20T08:14:02.978347Z",
+     "iopub.status.busy": "2024-12-20T08:14:02.977994Z",
+     "iopub.status.idle": "2024-12-20T08:14:04.553647Z",
+     "shell.execute_reply": "2024-12-20T08:14:04.552594Z"
+    },
+    "papermill": {
+     "duration": 1.582181,
+     "end_time": "2024-12-20T08:14:04.555576",
+     "exception": false,
+     "start_time": "2024-12-20T08:14:02.973395",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "vocab = []\n",
+    "for sentence in df['content'].tolist():\n",
+    "    tokens = sentence.split()\n",
+    "    for token in tokens:\n",
+    "        if token not in vocab:\n",
+    "            vocab.append(token)\n",
+    "\n",
+    "vocab.append('UNK')\n",
+    "vocab.append('PAD')\n",
+    "word_to_idx = {word: idx for idx, word in enumerate(vocab)}\n",
+    "vocab_size = len(vocab)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "id": "5e45ee3b",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-12-20T08:14:04.564826Z",
+     "iopub.status.busy": "2024-12-20T08:14:04.564481Z",
+     "iopub.status.idle": "2024-12-20T08:14:04.570297Z",
+     "shell.execute_reply": "2024-12-20T08:14:04.569174Z"
+    },
+    "papermill": {
+     "duration": 0.012403,
+     "end_time": "2024-12-20T08:14:04.572117",
+     "exception": false,
+     "start_time": "2024-12-20T08:14:04.559714",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "def transform(text, word_to_idx, max_seq_len):\n",
+    "    tokens = []\n",
+    "    for w in text.split():\n",
+    "        try:\n",
+    "            w_ids = word_to_idx[w]\n",
+    "        except:\n",
+    "            w_ids = word_to_idx['UNK']\n",
+    "        tokens.append(w_ids)\n",
+    "\n",
+    "    if len(tokens) < max_seq_len:\n",
+    "        tokens += [word_to_idx['PAD']] * (max_seq_len - len(tokens))\n",
+    "    elif len(tokens) > max_seq_len:\n",
+    "        tokens = tokens[:max_seq_len]\n",
+    "\n",
+    "    return tokens"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "id": "aa2b4341",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-12-20T08:14:04.581822Z",
+     "iopub.status.busy": "2024-12-20T08:14:04.581416Z",
+     "iopub.status.idle": "2024-12-20T08:14:04.593181Z",
+     "shell.execute_reply": "2024-12-20T08:14:04.591894Z"
+    },
+    "papermill": {
+     "duration": 0.018795,
+     "end_time": "2024-12-20T08:14:04.594925",
+     "exception": false,
+     "start_time": "2024-12-20T08:14:04.576130",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "val_size = 0.2\n",
+    "test_size = 0.125\n",
+    "is_shuffle = True\n",
+    "\n",
+    "texts = df['content'].tolist()\n",
+    "labels = df['sentiment'].tolist()\n",
+    "\n",
+    "X_train, X_val, y_train, y_val = train_test_split(\n",
+    "    texts, labels, test_size=val_size, random_state=1, shuffle=is_shuffle\n",
+    ")\n",
+    "\n",
+    "X_train, X_test, y_train, y_test = train_test_split(\n",
+    "    X_train, y_train, test_size=test_size, random_state=1, shuffle=is_shuffle\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "id": "efb95961",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-12-20T08:14:04.604429Z",
+     "iopub.status.busy": "2024-12-20T08:14:04.604057Z",
+     "iopub.status.idle": "2024-12-20T08:14:04.610433Z",
+     "shell.execute_reply": "2024-12-20T08:14:04.609304Z"
+    },
+    "papermill": {
+     "duration": 0.013254,
+     "end_time": "2024-12-20T08:14:04.612361",
+     "exception": false,
+     "start_time": "2024-12-20T08:14:04.599107",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "class FinancialNews(Dataset):\n",
+    "    def __init__(self, X, y, word_to_idx, max_seq_len, transform=None):\n",
+    "        self.texts = X\n",
+    "        self.labels = y\n",
+    "        self.word_to_idx = word_to_idx\n",
+    "        self.max_seq_len = max_seq_len\n",
+    "        self.transform = transform\n",
+    "\n",
+    "    def __len__(self):\n",
+    "        return len(self.texts)\n",
+    "\n",
+    "    def __getitem__(self, idx):\n",
+    "        text = self.texts[idx]\n",
+    "        label = self.labels[idx]\n",
+    "\n",
+    "        if self.transform:\n",
+    "            text = self.transform(text, self.word_to_idx, self.max_seq_len)\n",
+    "\n",
+    "        text = torch.tensor(text)\n",
+    "        return text, label"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "id": "6f94d058",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-12-20T08:14:04.621397Z",
+     "iopub.status.busy": "2024-12-20T08:14:04.621014Z",
+     "iopub.status.idle": "2024-12-20T08:14:04.627170Z",
+     "shell.execute_reply": "2024-12-20T08:14:04.625834Z"
+    },
+    "papermill": {
+     "duration": 0.012512,
+     "end_time": "2024-12-20T08:14:04.628826",
+     "exception": false,
+     "start_time": "2024-12-20T08:14:04.616314",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "max_seq_len = 32\n",
+    "\n",
+    "train_dataset = FinancialNews(\n",
+    "    X_train, y_train, word_to_idx=word_to_idx, max_seq_len=max_seq_len, transform=transform\n",
+    ")\n",
+    "\n",
+    "val_dataset = FinancialNews(\n",
+    "    X_val, y_val, word_to_idx=word_to_idx, max_seq_len=max_seq_len, transform=transform\n",
+    ")\n",
+    "\n",
+    "test_dataset = FinancialNews(\n",
+    "    X_test, y_test, word_to_idx=word_to_idx, max_seq_len=max_seq_len, transform=transform\n",
+    ")\n",
+    "\n",
+    "train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)\n",
+    "val_loader = DataLoader(val_dataset, batch_size=8, shuffle=False)\n",
+    "test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "id": "823fec9e",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-12-20T08:14:04.638724Z",
+     "iopub.status.busy": "2024-12-20T08:14:04.638321Z",
+     "iopub.status.idle": "2024-12-20T08:14:04.645502Z",
+     "shell.execute_reply": "2024-12-20T08:14:04.644178Z"
+    },
+    "papermill": {
+     "duration": 0.013943,
+     "end_time": "2024-12-20T08:14:04.647231",
+     "exception": false,
+     "start_time": "2024-12-20T08:14:04.633288",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "class SentimentClassifier(nn.Module):\n",
+    "    def __init__(self, vocab_size, embedding_dim, hidden_size, n_layers, n_classes, dropout_prob):\n",
+    "        super(SentimentClassifier, self).__init__()\n",
+    "        self.embedding = nn.Embedding(vocab_size, embedding_dim)\n",
+    "        self.rnn = nn.RNN(embedding_dim, hidden_size, n_layers, batch_first=True)\n",
+    "        self.norm = nn.LayerNorm(hidden_size)\n",
+    "        self.dropout = nn.Dropout(dropout_prob)\n",
+    "        self.fc1 = nn.Linear(hidden_size, 16)\n",
+    "        self.relu = nn.ReLU()\n",
+    "        self.fc2 = nn.Linear(16, n_classes)\n",
+    "\n",
+    "    def forward(self, x):\n",
+    "        x = self.embedding(x)\n",
+    "        x, hn = self.rnn(x)\n",
+    "        x = x[:, -1, :]\n",
+    "        x = self.norm(x)\n",
+    "        x = self.dropout(x)\n",
+    "        x = self.fc1(x)\n",
+    "        x = self.relu(x)\n",
+    "        x = self.fc2(x)\n",
+    "        return x"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "id": "a8af5f0f",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-12-20T08:14:04.656589Z",
+     "iopub.status.busy": "2024-12-20T08:14:04.656114Z",
+     "iopub.status.idle": "2024-12-20T08:14:06.438636Z",
+     "shell.execute_reply": "2024-12-20T08:14:06.437543Z"
+    },
+    "papermill": {
+     "duration": 1.789761,
+     "end_time": "2024-12-20T08:14:06.441009",
+     "exception": false,
+     "start_time": "2024-12-20T08:14:04.651248",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "n_classes = len(classes)\n",
+    "embedding_dim = 64\n",
+    "hidden_size = 64\n",
+    "n_layers = 2\n",
+    "dropout_prob = 0.2\n",
+    "device = 'cuda' if torch.cuda.is_available() else 'cpu'\n",
+    "\n",
+    "model = SentimentClassifier(\n",
+    "    vocab_size=vocab_size,\n",
+    "    embedding_dim=embedding_dim,\n",
+    "    hidden_size=hidden_size,\n",
+    "    n_layers=n_layers,\n",
+    "    n_classes=n_classes,\n",
+    "    dropout_prob=dropout_prob\n",
+    ").to(device)\n",
+    "\n",
+    "criterion = nn.CrossEntropyLoss()\n",
+    "optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "id": "fe355c56",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-12-20T08:14:06.451196Z",
+     "iopub.status.busy": "2024-12-20T08:14:06.450520Z",
+     "iopub.status.idle": "2024-12-20T08:14:06.459818Z",
+     "shell.execute_reply": "2024-12-20T08:14:06.458700Z"
+    },
+    "papermill": {
+     "duration": 0.016101,
+     "end_time": "2024-12-20T08:14:06.461590",
+     "exception": false,
+     "start_time": "2024-12-20T08:14:06.445489",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "def fit(model, train_loader, val_loader, criterion, optimizer, device, epochs):\n",
+    "    train_losses, val_losses = [], []\n",
+    "\n",
+    "    for epoch in range(epochs):\n",
+    "        model.train()\n",
+    "        batch_train_losses = []\n",
+    "\n",
+    "        for inputs, labels in train_loader:\n",
+    "            inputs, labels = inputs.to(device), labels.to(device)\n",
+    "            optimizer.zero_grad()\n",
+    "            outputs = model(inputs)\n",
+    "            loss = criterion(outputs, labels)\n",
+    "            loss.backward()\n",
+    "            optimizer.step()\n",
+    "            batch_train_losses.append(loss.item())\n",
+    "\n",
+    "        train_loss = sum(batch_train_losses) / len(batch_train_losses)\n",
+    "        train_losses.append(train_loss)\n",
+    "\n",
+    "        val_loss, val_acc = evaluate(model, val_loader, criterion, device)\n",
+    "        val_losses.append(val_loss)\n",
+    "\n",
+    "        print(f'Epoch {epoch + 1}: Train loss={train_loss:.4f}, Val loss={val_loss:.4f}')\n",
+    "\n",
+    "    return train_losses, val_losses\n",
+    "\n",
+    "def evaluate(model, dataloader, criterion, device):\n",
+    "    model.eval()\n",
+    "    total_acc, total_loss = 0, 0\n",
+    "\n",
+    "    with torch.no_grad():\n",
+    "        for inputs, labels in dataloader:\n",
+    "            inputs, labels = inputs.to(device), labels.to(device)\n",
+    "            outputs = model(inputs)\n",
+    "            loss = criterion(outputs, labels)\n",
+    "            total_loss += loss.item()\n",
+    "            total_acc += (outputs.argmax(1) == labels).sum().item()\n",
+    "\n",
+    "    return total_loss / len(dataloader), total_acc / len(dataloader.dataset)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "id": "8cc0990c",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-12-20T08:14:06.470903Z",
+     "iopub.status.busy": "2024-12-20T08:14:06.470545Z",
+     "iopub.status.idle": "2024-12-20T08:14:59.293631Z",
+     "shell.execute_reply": "2024-12-20T08:14:59.292199Z"
+    },
+    "papermill": {
+     "duration": 52.829716,
+     "end_time": "2024-12-20T08:14:59.295550",
+     "exception": false,
+     "start_time": "2024-12-20T08:14:06.465834",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Epoch 1: Train loss=1.0102, Val loss=0.9541\n",
+      "Epoch 2: Train loss=0.9439, Val loss=0.9338\n",
+      "Epoch 3: Train loss=0.9337, Val loss=0.9294\n",
+      "Epoch 4: Train loss=0.9317, Val loss=0.9286\n",
+      "Epoch 5: Train loss=0.9311, Val loss=0.9283\n",
+      "Epoch 6: Train loss=0.9286, Val loss=0.9283\n",
+      "Epoch 7: Train loss=0.9287, Val loss=0.9283\n",
+      "Epoch 8: Train loss=0.9302, Val loss=0.9284\n",
+      "Epoch 9: Train loss=0.9311, Val loss=0.9282\n",
+      "Epoch 10: Train loss=0.9294, Val loss=0.9282\n",
+      "Epoch 11: Train loss=0.9300, Val loss=0.9281\n",
+      "Epoch 12: Train loss=0.9295, Val loss=0.9283\n",
+      "Epoch 13: Train loss=0.9283, Val loss=0.9282\n",
+      "Epoch 14: Train loss=0.9282, Val loss=0.9281\n",
+      "Epoch 15: Train loss=0.9256, Val loss=0.9280\n",
+      "Epoch 16: Train loss=0.9286, Val loss=0.9279\n",
+      "Epoch 17: Train loss=0.9276, Val loss=0.9279\n",
+      "Epoch 18: Train loss=0.9320, Val loss=0.9279\n",
+      "Epoch 19: Train loss=0.9265, Val loss=0.9277\n",
+      "Epoch 20: Train loss=0.9272, Val loss=0.9277\n",
+      "Epoch 21: Train loss=0.9270, Val loss=0.9277\n",
+      "Epoch 22: Train loss=0.9297, Val loss=0.9277\n",
+      "Epoch 23: Train loss=0.9250, Val loss=0.9277\n",
+      "Epoch 24: Train loss=0.9273, Val loss=0.9276\n",
+      "Epoch 25: Train loss=0.9274, Val loss=0.9275\n",
+      "Epoch 26: Train loss=0.9251, Val loss=0.9270\n",
+      "Epoch 27: Train loss=0.9257, Val loss=0.9267\n",
+      "Epoch 28: Train loss=0.9270, Val loss=0.9267\n",
+      "Epoch 29: Train loss=0.9246, Val loss=0.9264\n",
+      "Epoch 30: Train loss=0.9244, Val loss=0.9260\n",
+      "Epoch 31: Train loss=0.9255, Val loss=0.9252\n",
+      "Epoch 32: Train loss=0.9237, Val loss=0.9246\n",
+      "Epoch 33: Train loss=0.9211, Val loss=0.9256\n",
+      "Epoch 34: Train loss=0.9218, Val loss=0.9264\n",
+      "Epoch 35: Train loss=0.9152, Val loss=0.9211\n",
+      "Epoch 36: Train loss=0.9010, Val loss=0.9296\n",
+      "Epoch 37: Train loss=0.9201, Val loss=0.9228\n",
+      "Epoch 38: Train loss=0.8929, Val loss=0.9144\n",
+      "Epoch 39: Train loss=0.8662, Val loss=0.9236\n",
+      "Epoch 40: Train loss=0.8878, Val loss=0.8873\n",
+      "Epoch 41: Train loss=0.8723, Val loss=0.8924\n",
+      "Epoch 42: Train loss=0.8491, Val loss=0.8786\n",
+      "Epoch 43: Train loss=0.8413, Val loss=0.8768\n",
+      "Epoch 44: Train loss=0.8355, Val loss=0.8828\n",
+      "Epoch 45: Train loss=0.8284, Val loss=0.8742\n",
+      "Epoch 46: Train loss=0.8192, Val loss=0.8790\n",
+      "Epoch 47: Train loss=0.8232, Val loss=0.8834\n",
+      "Epoch 48: Train loss=0.8123, Val loss=0.8758\n",
+      "Epoch 49: Train loss=0.8026, Val loss=0.8753\n",
+      "Epoch 50: Train loss=0.8003, Val loss=0.8815\n"
+     ]
+    }
+   ],
+   "source": [
+    "epochs = 50\n",
+    "train_losses, val_losses = fit(model, train_loader, val_loader, criterion, optimizer, device, epochs)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "id": "a78091a9",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-12-20T08:14:59.311435Z",
+     "iopub.status.busy": "2024-12-20T08:14:59.311072Z",
+     "iopub.status.idle": "2024-12-20T08:14:59.752745Z",
+     "shell.execute_reply": "2024-12-20T08:14:59.751420Z"
+    },
+    "papermill": {
+     "duration": 0.451474,
+     "end_time": "2024-12-20T08:14:59.754556",
+     "exception": false,
+     "start_time": "2024-12-20T08:14:59.303082",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Val Accuracy: 0.6258, Test Accuracy: 0.6330\n"
+     ]
+    }
+   ],
+   "source": [
+    "val_loss, val_acc = evaluate(model, val_loader, criterion, device)\n",
+    "test_loss, test_acc = evaluate(model, test_loader, criterion, device)\n",
+    "\n",
+    "print(f'Val Accuracy: {val_acc:.4f}, Test Accuracy: {test_acc:.4f}')"
+   ]
+  }
+ ],
+ "metadata": {
+  "kaggle": {
+   "accelerator": "none",
+   "dataSources": [
+    {
+     "datasetId": 6341830,
+     "sourceId": 10252667,
+     "sourceType": "datasetVersion"
+    }
+   ],
+   "dockerImageVersionId": 30822,
+   "isGpuEnabled": false,
+   "isInternetEnabled": true,
+   "language": "python",
+   "sourceType": "notebook"
+  },
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.10.12"
+  },
+  "papermill": {
+   "default_parameters": {},
+   "duration": 76.6169,
+   "end_time": "2024-12-20T08:15:02.509205",
+   "environment_variables": {},
+   "exception": null,
+   "input_path": "__notebook__.ipynb",
+   "output_path": "__notebook__.ipynb",
+   "parameters": {},
+   "start_time": "2024-12-20T08:13:45.892305",
+   "version": "2.6.0"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
